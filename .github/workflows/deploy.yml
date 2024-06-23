@@ -30,8 +30,10 @@ jobs:
           EC2_USER: ${{ secrets.EC2_USER }}
           EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
-          echo "${SSH_PRIVATE_KEY}" > mykey.pem
+          echo "$SSH_PRIVATE_KEY_BASE64" | base64 -d > mykey.pem
           chmod 600 mykey.pem
+          ssh-keygen -y -f mykey.pem > mykey.pub  
+          cat mykey.pub 
           scp -o StrictHostKeyChecking=no -i mykey.pem -r ./dist ${EC2_USER}@${EC2_HOST}:~/hello-world
           ssh -o StrictHostKeyChecking=no -i mykey.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
             cd ~/hello-world
