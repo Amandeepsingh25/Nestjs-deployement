@@ -30,7 +30,7 @@ jobs:
           EC2_USER: ${{ secrets.EC2_USER }}
           EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
-          echo "$SSH_PRIVATE_KEY_BASE64" | base64 -d > mykey.pem
+          echo "$SSH_PRIVATE_KEY" | base64 -d > mykey.pem
           chmod 600 mykey.pem
           ssh-keygen -y -f mykey.pem > mykey.pub  
           cat mykey.pub 
