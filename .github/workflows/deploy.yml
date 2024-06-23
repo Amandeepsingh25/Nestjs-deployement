@@ -32,12 +32,12 @@ jobs:
         run: |
           echo "$SSH_PRIVATE_KEY" | base64 -d > mykey.pem
           chmod 600 mykey.pem
-          ssh-keygen -y -f mykey.pem > mykey.pub  
-          cat mykey.pub 
+          ssh-keygen -y -f mykey.pem > mykey.pub  # Generate public key to verify
+          cat mykey.pub  # Optional: Display public key for verification
           scp -o StrictHostKeyChecking=no -i mykey.pem -r ./dist ${EC2_USER}@${EC2_HOST}:~/hello-world
           ssh -o StrictHostKeyChecking=no -i mykey.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
             cd ~/hello-world
-            npm install
+            npm install --production
             pm2 restart hello-world || pm2 start dist/main.js --name "hello-world"
             pm2 save
           EOF
