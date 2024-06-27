@@ -15,12 +15,13 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-region: ap-south-1  # Replace with your AWS region
-          role-to-assume: arn:aws:iam::533266978173:role/ec2-role  # Replace with your role ARN
+          role-to-assume: arn:aws:iam::533266978173:role/ec2-role
+           # Replace with your role ARN
 
-      - name: Use AWS CLI
-        uses: aws-actions/aws-cli@v2
-        with:
-          aws-region: ap-south-1  # Replace with your AWS region
+      - name: Install AWS CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y awscli
 
       - name: Get EC2 public IP address
         id: get-ec2-ip
