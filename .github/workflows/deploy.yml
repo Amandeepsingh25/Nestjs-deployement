@@ -1,43 +1,63 @@
-name: Deploy to EC2
+name: Deploy Next.js App to EC2 (Secure)
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]  # Trigger on pushes to the main branch
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # Runner environment
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v3  # Checkout code from GitHub repository
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v2
+      - name: Configure AWS credentials (using AWS Secrets Manager)
+        uses: aws-actions/configure-aws-credentials@v1
         with:
-          node-version: '20'  
+          aws-region:   ap-south-1 # Replace with your AWS region
+          role-to-assume: arn:aws:iam::533266978173:role/ec2-role # Replace with your role ARN
 
-      - name: Install dependencies
-        run: npm install
+      - name: Use AWS CLI
+        uses: aws-actions/aws-cli@v2
+        with:
+          aws-region: ap-south-1  # Replace with your AWS region
 
-      - name: Build the project
-        run: npm run build
-
-      - name: Prepare SSH Key
+      - name: Get EC2 public IP address
+        id: get-ec2-ip
         run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > mykey.pem
-          chmod 600 mykey.pem
+          INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=your-instance-tag" --query "Reservations[*].Instances[*].InstanceId" --output text)
+          PUBLIC_IP=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[*].Instances[*].PublicIpAddress" --output text)
+          echo "::set-output name=ip::$PUBLIC_IP"
 
-      - name: Deploy to EC2
+      - name: SSH into EC2 instance and deploy
         env:
-          EC2_USER: ${{ secrets.EC2_USER }}
-          EC2_HOST: ${{ secrets.EC2_HOST }}
+          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}  # Secret containing your private SSH key
         run: |
-          scp -o StrictHostKeyChecking=no -i mykey.pem -r ./dist ${EC2_USER}@${EC2_HOST}:~/hello-world
-          ssh -o StrictHostKeyChecking=no -i mykey.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
-            cd ~/hello-world
-            npm install --production
-            pm2 restart hello-world || pm2 start dist/main.js --name "hello-world"
-            pm2 save
-          EOF
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${{ steps.get-ec2-ip.outputs.ip }} << 'EOF'
+            # Update and install dependencies (if not pre-installed)
+            sudo apt update
+            sudo apt install -y nodejs npm
+
+            # Navigate to application directory
+            cd /path/to/your/app/directory  # Replace with your app directory
+
+            # Pull the latest code from the repository
+            git pull origin main
+
+            # Install project dependencies
+            npm install
+
+            # Build Next.js application for production
+            npm run build
+
+            # Start Next.js server (adjust command if needed)
+            npm run start &
+
+            # Optional: Configure a process manager (e.g., pm2) for restarting
+            # pm2 start npm --name "nextjs-app" -- run start
+            # pm2 save
+EOF
