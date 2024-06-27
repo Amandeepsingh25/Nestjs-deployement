@@ -1,43 +1,43 @@
-name: Deploy Next.js App to EC2 (Secure)
+name: Deploy to EC2
 
 on:
   push:
-    branches: [ main ]  # Trigger on pushes to the main branch
+    branches:
+      - main
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest  # Runner environment
+    runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3  # Checkout code from GitHub repository
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-      - name: Install Node.js and npm
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y nodejs npm
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16'
 
-      - name: Install PM2
-        run: |
-          npm install pm2 -g
+      - name: Install dependencies
+        run: npm install
 
-      - name: SSH into EC2 instance and deploy
+      - name: Build the project
+        run: npm run build
+
+      - name: Deploy to EC2
         env:
-          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}  # Secret containing your private SSH key
+          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY  }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -r ./dist ${EC2_USER}@${EC2_HOST}:~/app
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@13.201.92.195 << 'EOF'
-            cd /src  
-
-            git pull origin main
-
+            cd ~/app
             npm install
-
-            npm run build
-
-            pm2 stop all  # Stop all running PM2 processes
-            pm2 start npm --name "nextjs-app" -- start
+            pm2 restart app || pm2 start dist/main.js --name "app"
             pm2 save
           EOF
