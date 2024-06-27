@@ -37,7 +37,12 @@ jobs:
           scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -r ./dist ${EC2_USER}@${EC2_HOST}:~/app
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@13.201.92.195 << 'EOF'
             cd ~/app
-            npm install
+            sudo apt-get update
+            sudo apt-get install -y nodejs npm
+
+            npm install pm2 -g
+
+            npm install --only=production
             pm2 restart app || pm2 start dist/main.js --name "app"
             pm2 save
           EOF
