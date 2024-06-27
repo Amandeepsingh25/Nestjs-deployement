@@ -11,24 +11,14 @@ jobs:
     steps:
       - uses: actions/checkout@v3  # Checkout code from GitHub repository
 
-      - name: Configure AWS credentials (using AWS Secrets Manager)
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-region: ap-south-1  # Replace with your AWS region
-          role-to-assume: arn:aws:iam::533266978173:role/ec2-role
-           # Replace with your role ARN
-
-      - name: Install AWS CLI
+      - name: Install Node.js and npm
         run: |
           sudo apt-get update
-          sudo apt-get install -y awscli
+          sudo apt-get install -y nodejs npm
 
-      - name: Get EC2 public IP address
-        id: get-ec2-ip
+      - name: Install PM2
         run: |
-          INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=your-instance-tag" --query "Reservations[*].Instances[*].InstanceId" --output text)
-          PUBLIC_IP=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[*].Instances[*].PublicIpAddress" --output text)
-          echo "::set-output name=ip::$PUBLIC_IP"
+          npm install pm2 -g
 
       - name: SSH into EC2 instance and deploy
         env:
@@ -38,11 +28,8 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${{ steps.get-ec2-ip.outputs.ip }} << 'EOF'
-            sudo apt update
-            sudo apt install -y nodejs npm
-
-            cd src/ # Replace with your app directory
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@13.201.92.195 << 'EOF'
+            cd /src  
 
             git pull origin main
 
@@ -50,8 +37,7 @@ jobs:
 
             npm run build
 
-            npm run start &
-            
-            # Optional: Configure a process manager (e.g., pm2) for restarting
-            # pm2 start npm --name "nextjs-app" -- run start
-            # pm2 save
+            pm2 stop all  # Stop all running PM2 processes
+            pm2 start npm --name "nextjs-app" -- start
+            pm2 save
+          EOF
