@@ -41,7 +41,8 @@ jobs:
             sudo apt-get install -y nodejs npm
 
             npm install pm2 -g
-
+            export PATH="$PATH:$(npm bin -g)"
+            
             npm install --only=production
             pm2 restart app || pm2 start dist/main.js --name "app"
             pm2 save
