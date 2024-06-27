@@ -38,26 +38,19 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
 
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${{ steps.get-ec2-ip.outputs.ip }} << 'EOF'
-            # Update and install dependencies (if not pre-installed)
             sudo apt update
             sudo apt install -y nodejs npm
 
-            # Navigate to application directory
-            cd /path/to/your/app/directory  # Replace with your app directory
+            cd src/ # Replace with your app directory
 
-            # Pull the latest code from the repository
             git pull origin main
 
-            # Install project dependencies
             npm install
 
-            # Build Next.js application for production
             npm run build
 
-            # Start Next.js server (adjust command if needed)
             npm run start &
-
+            
             # Optional: Configure a process manager (e.g., pm2) for restarting
             # pm2 start npm --name "nextjs-app" -- run start
             # pm2 save
-EOF
