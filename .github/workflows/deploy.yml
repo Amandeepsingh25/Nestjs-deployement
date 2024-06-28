@@ -26,7 +26,7 @@ jobs:
 
       - name: Deploy to EC2
         env:
-          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY  }}
+          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
           EC2_USER: ${{ secrets.EC2_USER }}
           EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
@@ -34,16 +34,29 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -r ./dist ${EC2_USER}@${EC2_HOST}:~/app
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@13.201.92.195 << 'EOF'
-            cd ~/app
-            sudo apt-get update
-            sudo apt-get install -y nodejs npm
+          # Copy built files to EC2
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -r ./* ${EC2_USER}@${EC2_HOST}:~/app
 
-            npm install pm2 -g
-            export PATH="$PATH:$(npm bin -g)"
-            
+          # SSH into EC2 and deploy
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${EC2_USER}@${EC2_HOST} << 'EOF'
+            cd ~/app
+
+            # Remove old Node.js version
+            sudo apt-get remove -y nodejs
+
+            # Install Node.js 16.x
+            curl -fsSL https://deb.nodesource.com/setup_16.x | sudo -E bash -
+            sudo apt-get install -y nodejs
+
+            # Install PM2 globally with sudo
+            sudo npm install -g pm2
+
+            # Install production dependencies
             npm install --only=production
+
+            # Restart or start the application using PM2
             pm2 restart app || pm2 start dist/main.js --name "app"
+
+            # Save PM2 process list
             pm2 save
           EOF
