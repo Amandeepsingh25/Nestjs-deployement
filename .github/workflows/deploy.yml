@@ -33,13 +33,15 @@ jobs:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
-          echo "$EC2_SSH_KEY" > private_key
-          chmod 400 private_key
-          scp -o StrictHostKeyChecking=no -i private_key -r ./dist $EC2_USER@$EC2_HOST:/home/$EC2_USER/nodejs-app-ec2/
-          ssh -o StrictHostKeyChecking=no -i private_key $EC2_USER@$EC2_HOST << 'EOF'
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -r ./dist $EC2_USER@$EC2_HOST:/home/$EC2_USER/nodejs-app-ec2/
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa $EC2_USER@$EC2_HOST << 'EOF'
             cd /home/ubuntu/nodejs-app-ec2/
             npm install --production
-            ls -la dist # Verify the contents of the dist directory
+            ls -la dist 
             pm2 stop nestjs-app || true
             pm2 start dist/main.js --name nestjs-app
             pm2 save
