@@ -29,7 +29,7 @@ jobs:
 
       - name: Deploy to EC2
         env:
-          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY}}
+          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
@@ -37,16 +37,23 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-         
-          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -r ./* $EC2_USER@$EC2_HOST:/home/$EC2_USER/nodejs-app-ec2/
+          # Create remote directory if not exists
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa $EC2_USER@$EC2_HOST "mkdir -p /home/$EC2_USER/nodejs-app-ec2"
+
+          # Copy build files to EC2
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -r ./dist/* $EC2_USER@$EC2_HOST:/home/$EC2_USER/nodejs-app-ec2/
+
+          # Install dependencies and start app with PM2
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa $EC2_USER@$EC2_HOST << 'EOF'
-            cd /home/ubuntu/nodejs-app-ec2/
+            cd /home/$EC2_USER/nodejs-app-ec2/
             npm install --production
-            ls -la dist 
-            pm2 stop nestjs-app || true
-            pm2 start dist/main.js --name nestjs-app
+
+            if ! pm2 list | grep -q nestjs-app; then
+              pm2 start dist/main.js --name nestjs-app
+            else
+              pm2 restart nestjs-app
+            fi
+
             pm2 save
-            sudo pm2 startup systemd
-            sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u $EC2_USER --hp /home/$EC2_USER
-            
+            sudo pm2 startup systemd -u $EC2_USER --hp /home/$EC2_USER
           EOF
