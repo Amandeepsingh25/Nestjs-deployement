@@ -37,7 +37,7 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa $EC2_USER@$EC2_HOST "mkdir -p /home/$EC2_USER/nodejs-app-ec2"
+         
           scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -r ./* $EC2_USER@$EC2_HOST:/home/$EC2_USER/nodejs-app-ec2/
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa $EC2_USER@$EC2_HOST << 'EOF'
             cd /home/ubuntu/nodejs-app-ec2/
@@ -46,4 +46,7 @@ jobs:
             pm2 stop nestjs-app || true
             pm2 start dist/main.js --name nestjs-app
             pm2 save
+            sudo pm2 startup systemd
+            sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u $EC2_USER --hp /home/$EC2_USER
+            
           EOF
